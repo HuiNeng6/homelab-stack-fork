@@ -5,6 +5,7 @@
 # Features:
 #   - GPU自适应: NVIDIA CUDA / AMD ROCm / 纯CPU fallback
 #   - 通过 docker compose --profile <nvidia|amd|cpu> 选择
+#   - Open WebUI with Authentik SSO integration
 #
 # Prerequisites:
 #   1. Base infrastructure running (Traefik + proxy network)
@@ -127,6 +128,7 @@ services:
   # URL: https://ai.${DOMAIN}
   # Docs: https://github.com/open-webui/open-webui
   # Note: Works with all profiles (connects to container named "ollama")
+  # SSO: Authentik OAuth2 integration (configure credentials in .env)
   # ---------------------------------------------------------------------------
   open-webui:
     image: ghcr.io/open-webui/open-webui:0.3.32
@@ -141,6 +143,16 @@ services:
       - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-changeme-secret-32chars}
       - DEFAULT_LOCALE=${DEFAULT_LOCALE:-zh-CN}
       - TZ=${TZ:-Asia/Shanghai}
+      # Open WebUI OAuth Configuration (Authentik)
+      - ENABLE_OAUTH_SIGNUP=true
+      - OAUTH_PROVIDER_NAME=Authentik
+      - OAUTH_CLIENT_ID=${OPENWEBUI_OAUTH_CLIENT_ID}
+      - OAUTH_CLIENT_SECRET=${OPENWEBUI_OAUTH_CLIENT_SECRET}
+      - OAUTH_SCOPES=openid email profile
+      - OPENID_PROVIDER_URL=https://${AUTHENTIK_DOMAIN}/application/o/open-webui/.well-known/openid-configuration
+      - OAUTH_REDIRECT_URI=https://ai.${DOMAIN}/oauth/oidc/callback
+      # Enable trust for OAuth email domains (optional, set to allow all or specific domains)
+      - OAUTH_EMAIL_TRUSTED_DOMAINS=
     labels:
       - traefik.enable=true
       - "traefik.http.routers.open-webui.rule=Host(`ai.${DOMAIN}`)"
